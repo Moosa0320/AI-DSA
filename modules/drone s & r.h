@@ -7,26 +7,16 @@
 // Forward declarations (circular dependency avoid karne ke liye)
 struct Base;
 
-// ============================================================================
-// CONSTANTS AND ENUMS
-// ============================================================================
-
-// Fuel management constants
 const float MAX_FUEL_CAPACITY = 100.0f;              // Maximum fuel percentage
 const float MIN_OPERATIONAL_FUEL = 10.0f;            // Critical fuel level
 const float FUEL_CONSUMPTION_BASE_RATE = 5.0f;       // Base fuel consumption per mission
 const float WIND_SPEED_FUEL_MULTIPLIER = 0.5f;       // Additional fuel per unit wind speed
 
-// Drone operational status
 enum DroneStatus {
     OPERATIONAL,      // Fuel > 10%
     LOW_FUEL,         // Fuel <= 10%
     OUT_OF_FUEL       // Fuel = 0%
 };
-
-// ============================================================================
-// MISSION LOG NODE (Stack Implementation using Linked List)
-// ============================================================================
 
 struct MissionLogNode {
     std::string baseName;           // Target base name/ID
@@ -38,38 +28,24 @@ struct MissionLogNode {
     MissionLogNode(std::string name, float fuel, time_t time);
 };
 
-// ============================================================================
-// DRONE STATE (Main State Container)
-// ============================================================================
-
 class DroneState {
 private:
-    // Drone attributes
     float currentFuel;              // Current fuel level (0-100%)
     int positionX;                  // Current X coordinate on map
     int positionY;                  // Current Y coordinate on map
     int missionsCompleted;          // Total missions completed counter
-    
-    // Mission history stack
+
     MissionLogNode* historyHead;    // Head pointer for stack
     int historySize;                // Number of missions logged
-    
-    // Private helper functions
+
     float calculateFuelConsumptionRate(float windSpeed, bool hasAlert);
     void validateFuelLevel();
     
 public:
-    // ========================================================================
-    // CONSTRUCTOR AND DESTRUCTOR
-    // ========================================================================
-    
+   
     DroneState();                   // Initialize with default values
     ~DroneState();                  // Cleanup stack memory
-    
-    // ========================================================================
-    // FUEL MANAGEMENT FUNCTIONS
-    // ========================================================================
-    
+  
     // Consume fuel during mission
     // Parameters: amount - fuel to deduct, windSpeed - current wind speed
     // Returns: true if successful, false if insufficient fuel
@@ -92,10 +68,6 @@ public:
     // Returns: DroneStatus enum value
     DroneStatus getDroneStatus() const;
     
-    // ========================================================================
-    // MISSION HISTORY STACK FUNCTIONS
-    // ========================================================================
-    
     // Push new mission log entry to stack
     // Parameters: baseName - target base name, fuelConsumed - fuel used
     void pushMission(std::string baseName, float fuelConsumed);
@@ -114,11 +86,7 @@ public:
     // Get all missions for Analysis Module (Module 6)
     // Returns: pointer to stack head for traversal
     MissionLogNode* getAllMissions() const;
-    
-    // ========================================================================
-    // UTILITY FUNCTIONS
-    // ========================================================================
-    
+ 
     // Update drone position on map
     // Parameters: x, y - new coordinates
     void updatePosition(int x, int y);
