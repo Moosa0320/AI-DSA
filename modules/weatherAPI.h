@@ -1,44 +1,45 @@
-#ifndef WEATHERAPI_H_INCLUDED
-#define WEATHERAPI_H_INCLUDED
+// WeatherAPI.h
+#ifndef WEATHERAPI_H
+#define WEATHERAPI_H
 
+#include<string>
 #include<ctime>
 #include<string>
-#include<cstlib>
 
 using namespace std;
 
-// Weather Data Model
+// Weather data structure for sidebar display
 struct Weather{
-    float temperature, windspeed;
-    string alerts;
-
+    float temperature;  // in Celsius (will be displayed directly)
+    float windspeed;    // in km/h (used for drone health calculation)
+    string alerts; // stored but not displayed
 };
 
-// Weather Service Class
 class WeatherAPI{
-public:
-    WeatherAPI(string& apiKey); // Constructor
-
-    // Set target location dynamically
-    Weather setLocation(float latitude, float longitude);
-
-    // Returns the latest weather data
-    void getCurrent Weather();
-
-    // Call periodically to refresh weather
-    void update();
 private:
-
-    Weather currentWeather;  // Current weather snapshot
-    time_t lastUpdateTime;  // Last update timestamp
-
-    float longitude, latitude;  // Location coordinates
     string apiKey;
-
-    bool fetchFromAPI();  // Fetch weather from real API
-
-    void simulateWeather(); // Fallback simulation if API fails
-
+    float latitude;
+    float longitude;
+    time_t lastUpdateTime;
+    Weather currentWeather;
+    
+    // Helper functions
+    bool fetchFromAPI();
+    void parseResponse(string& jsonResponse);
+    void simulateWeather();  // fallback for testing
+    
+public:
+    // Constructor
+    WeatherAPI(string& key);
+    
+    // Set drone location
+    void setLocation(float lat, float lon);
+    
+    // Get current weather data (for sidebar display)
+    Weather getCurrentWeather();
+    
+    // Update weather (call every frame, internally checks 5 sec interval)
+    void update();
 };
 
-#endif // WEATHERAPI_H_INCLUDED
+#endif
