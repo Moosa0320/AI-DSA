@@ -12,7 +12,11 @@ struct Base
 {
     string name;           // Base name (e.g., "Base Alpha")
     float x, y;                 // Coordinates on map
-    int priority;               // Critical points (higher = more important)
+    int priority;   // Critical points (higher = more important)
+
+    vector <pair<int, float>> neighbors;
+
+    void BaseDetails ();
 };
 
 // City structure - contains multiple bases
@@ -20,6 +24,8 @@ struct City
 {
     string name;           // City name (e.g., "Karachi")
     vector<Base> bases;    // List of all bases in this city
+
+    void DisplayBases();
 };
 
 class TargetLocations
@@ -48,6 +54,9 @@ public:
     
     // Load predefined targets (for initialization)
     void loadDefaultTargets();
+
+    //Dijkstra's Algorithm
+    vector<int> diskstra (string& cityName, int HomeBase, int TarBase);
 };
 
 #endif
