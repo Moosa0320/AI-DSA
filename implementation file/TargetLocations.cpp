@@ -148,7 +148,7 @@ vector<int> TargetLocations::diskstra(string& cityName, int HomeBase, int TarBas
 // Load predefined targets
 void TargetLocations::loadDefaultTargets()
 {
-    // City 1: Karachi
+    // City 1: Karachi - 8 bases
     string city1 = "Karachi";
     addCity(city1);
     
@@ -156,22 +156,31 @@ void TargetLocations::loadDefaultTargets()
     Base k2 = {"Karachi Port", 25.0f, 8.0f, 3, {}};
     Base k3 = {"Karachi Airbase", 18.0f, 22.0f, 4, {}};
     Base k4 = {"Karachi Command", 5.0f, 30.0f, 2, {}};
-    Base k5 = {"Home Base", 5.0f, 5.0f, 0, {}};
+    Base k5 = {"Karachi Industrial", 32.0f, 18.0f, 4, {}};
+    Base k6 = {"Karachi Defense HQ", 15.0f, 28.0f, 5, {}};
+    Base k7 = {"Karachi Radar Station", 28.0f, 25.0f, 3, {}};
+    Base k8 = {"Home Base", 5.0f, 5.0f, 0, {}};
     
     // Setup neighbors (graph edges with fuel weights)
-    k5.neighbors = {{0, 8.0f}, {1, 20.0f}, {2, 15.0f}, {3, 25.0f}};  // Home to all
-    k1.neighbors = {{4, 8.0f}, {1, 12.0f}, {2, 10.0f}, {3, 18.0f}};
-    k2.neighbors = {{4, 20.0f}, {0, 12.0f}, {2, 15.0f}, {3, 25.0f}};
-    k3.neighbors = {{4, 15.0f}, {0, 10.0f}, {1, 15.0f}, {3, 12.0f}};
-    k4.neighbors = {{4, 25.0f}, {0, 18.0f}, {1, 25.0f}, {2, 12.0f}};
+    k8.neighbors = {{0, 8.0f}, {1, 20.0f}, {2, 15.0f}, {3, 25.0f}, {4, 28.0f}, {5, 24.0f}, {6, 30.0f}};
+    k1.neighbors = {{7, 8.0f}, {1, 12.0f}, {2, 10.0f}, {3, 18.0f}, {4, 20.0f}, {5, 15.0f}, {6, 22.0f}};
+    k2.neighbors = {{7, 20.0f}, {0, 12.0f}, {2, 15.0f}, {3, 25.0f}, {4, 10.0f}, {5, 22.0f}, {6, 14.0f}};
+    k3.neighbors = {{7, 15.0f}, {0, 10.0f}, {1, 15.0f}, {3, 12.0f}, {4, 18.0f}, {5, 8.0f}, {6, 16.0f}};
+    k4.neighbors = {{7, 25.0f}, {0, 18.0f}, {1, 25.0f}, {2, 12.0f}, {4, 28.0f}, {5, 6.0f}, {6, 20.0f}};
+    k5.neighbors = {{7, 28.0f}, {0, 20.0f}, {1, 10.0f}, {2, 18.0f}, {3, 28.0f}, {5, 16.0f}, {6, 8.0f}};
+    k6.neighbors = {{7, 24.0f}, {0, 15.0f}, {1, 22.0f}, {2, 8.0f}, {3, 6.0f}, {4, 16.0f}, {6, 12.0f}};
+    k7.neighbors = {{7, 30.0f}, {0, 22.0f}, {1, 14.0f}, {2, 16.0f}, {3, 20.0f}, {4, 8.0f}, {5, 12.0f}};
     
     addBase(city1, k1);
     addBase(city1, k2);
     addBase(city1, k3);
     addBase(city1, k4);
     addBase(city1, k5);
+    addBase(city1, k6);
+    addBase(city1, k7);
+    addBase(city1, k8);
     
-    // City 2: Lahore
+    // City 2: Lahore - 6 bases
     string city2 = "Lahore";
     addCity(city2);
     
@@ -179,21 +188,24 @@ void TargetLocations::loadDefaultTargets()
     Base l2 = {"Lahore Cantonment", 28.0f, 10.0f, 5, {}};
     Base l3 = {"Lahore Arsenal", 20.0f, 25.0f, 3, {}};
     Base l4 = {"Lahore Depot", 8.0f, 28.0f, 2, {}};
-    Base l5 = {"Home Base", 5.0f, 5.0f, 0, {}};
+    Base l5 = {"Lahore Military Academy", 30.0f, 22.0f, 4, {}};
+    Base l6 = {"Home Base", 5.0f, 5.0f, 0, {}};
     
-    l5.neighbors = {{0, 10.0f}, {1, 22.0f}, {2, 18.0f}, {3, 24.0f}};
-    l1.neighbors = {{4, 10.0f}, {1, 14.0f}, {2, 12.0f}, {3, 16.0f}};
-    l2.neighbors = {{4, 22.0f}, {0, 14.0f}, {2, 16.0f}, {3, 28.0f}};
-    l3.neighbors = {{4, 18.0f}, {0, 12.0f}, {1, 16.0f}, {3, 10.0f}};
-    l4.neighbors = {{4, 24.0f}, {0, 16.0f}, {1, 28.0f}, {2, 10.0f}};
+    l6.neighbors = {{0, 10.0f}, {1, 22.0f}, {2, 18.0f}, {3, 24.0f}, {4, 28.0f}};
+    l1.neighbors = {{5, 10.0f}, {1, 14.0f}, {2, 12.0f}, {3, 16.0f}, {4, 20.0f}};
+    l2.neighbors = {{5, 22.0f}, {0, 14.0f}, {2, 16.0f}, {3, 28.0f}, {4, 8.0f}};
+    l3.neighbors = {{5, 18.0f}, {0, 12.0f}, {1, 16.0f}, {3, 10.0f}, {4, 12.0f}};
+    l4.neighbors = {{5, 24.0f}, {0, 16.0f}, {1, 28.0f}, {2, 10.0f}, {4, 18.0f}};
+    l5.neighbors = {{5, 28.0f}, {0, 20.0f}, {1, 8.0f}, {2, 12.0f}, {3, 18.0f}};
     
     addBase(city2, l1);
     addBase(city2, l2);
     addBase(city2, l3);
     addBase(city2, l4);
     addBase(city2, l5);
+    addBase(city2, l6);
     
-    // City 3: Islamabad
+    // City 3: Islamabad - 7 bases
     string city3 = "Islamabad";
     addCity(city3);
     
@@ -201,21 +213,27 @@ void TargetLocations::loadDefaultTargets()
     Base i2 = {"ISB Strategic Base", 22.0f, 20.0f, 4, {}};
     Base i3 = {"ISB Defense HQ", 30.0f, 8.0f, 3, {}};
     Base i4 = {"ISB Reserve Base", 10.0f, 25.0f, 2, {}};
-    Base i5 = {"Home Base", 5.0f, 5.0f, 0, {}};
+    Base i5 = {"ISB Intelligence Center", 26.0f, 28.0f, 5, {}};
+    Base i6 = {"ISB Operations Base", 18.0f, 30.0f, 4, {}};
+    Base i7 = {"Home Base", 5.0f, 5.0f, 0, {}};
     
-    i5.neighbors = {{0, 12.0f}, {1, 20.0f}, {2, 28.0f}, {3, 22.0f}};
-    i1.neighbors = {{4, 12.0f}, {1, 10.0f}, {2, 18.0f}, {3, 14.0f}};
-    i2.neighbors = {{4, 20.0f}, {0, 10.0f}, {2, 15.0f}, {3, 12.0f}};
-    i3.neighbors = {{4, 28.0f}, {0, 18.0f}, {1, 15.0f}, {3, 25.0f}};
-    i4.neighbors = {{4, 22.0f}, {0, 14.0f}, {1, 12.0f}, {2, 25.0f}};
+    i7.neighbors = {{0, 12.0f}, {1, 20.0f}, {2, 28.0f}, {3, 22.0f}, {4, 30.0f}, {5, 26.0f}};
+    i1.neighbors = {{6, 12.0f}, {1, 10.0f}, {2, 18.0f}, {3, 14.0f}, {4, 24.0f}, {5, 16.0f}};
+    i2.neighbors = {{6, 20.0f}, {0, 10.0f}, {2, 15.0f}, {3, 12.0f}, {4, 12.0f}, {5, 14.0f}};
+    i3.neighbors = {{6, 28.0f}, {0, 18.0f}, {1, 15.0f}, {3, 25.0f}, {4, 22.0f}, {5, 28.0f}};
+    i4.neighbors = {{6, 22.0f}, {0, 14.0f}, {1, 12.0f}, {2, 25.0f}, {4, 10.0f}, {5, 8.0f}};
+    i5.neighbors = {{6, 30.0f}, {0, 24.0f}, {1, 12.0f}, {2, 22.0f}, {3, 10.0f}, {5, 6.0f}};
+    i6.neighbors = {{6, 26.0f}, {0, 16.0f}, {1, 14.0f}, {2, 28.0f}, {3, 8.0f}, {4, 6.0f}};
     
     addBase(city3, i1);
     addBase(city3, i2);
     addBase(city3, i3);
     addBase(city3, i4);
     addBase(city3, i5);
+    addBase(city3, i6);
+    addBase(city3, i7);
     
-    // City 4: Peshawar
+    // City 4: Peshawar - 9 bases
     string city4 = "Peshawar";
     addCity(city4);
     
@@ -223,21 +241,33 @@ void TargetLocations::loadDefaultTargets()
     Base p2 = {"Peshawar Airfield", 26.0f, 12.0f, 5, {}};
     Base p3 = {"Peshawar Outpost", 14.0f, 28.0f, 4, {}};
     Base p4 = {"Peshawar Supply", 8.0f, 32.0f, 2, {}};
-    Base p5 = {"Home Base", 5.0f, 5.0f, 0, {}};
+    Base p5 = {"Peshawar Border Post", 32.0f, 20.0f, 4, {}};
+    Base p6 = {"Peshawar Training Camp", 22.0f, 26.0f, 3, {}};
+    Base p7 = {"Peshawar Communication Hub", 30.0f, 30.0f, 5, {}};
+    Base p8 = {"Peshawar Logistics Center", 12.0f, 22.0f, 3, {}};
+    Base p9 = {"Home Base", 5.0f, 5.0f, 0, {}};
     
-    p5.neighbors = {{0, 15.0f}, {1, 25.0f}, {2, 24.0f}, {3, 30.0f}};
-    p1.neighbors = {{4, 15.0f}, {1, 12.0f}, {2, 14.0f}, {3, 20.0f}};
-    p2.neighbors = {{4, 25.0f}, {0, 12.0f}, {2, 18.0f}, {3, 26.0f}};
-    p3.neighbors = {{4, 24.0f}, {0, 14.0f}, {1, 18.0f}, {3, 8.0f}};
-    p4.neighbors = {{4, 30.0f}, {0, 20.0f}, {1, 26.0f}, {2, 8.0f}};
+    p9.neighbors = {{0, 15.0f}, {1, 25.0f}, {2, 24.0f}, {3, 30.0f}, {4, 30.0f}, {5, 26.0f}, {6, 32.0f}, {7, 20.0f}};
+    p1.neighbors = {{8, 15.0f}, {1, 12.0f}, {2, 14.0f}, {3, 20.0f}, {4, 16.0f}, {5, 12.0f}, {6, 18.0f}, {7, 10.0f}};
+    p2.neighbors = {{8, 25.0f}, {0, 12.0f}, {2, 18.0f}, {3, 26.0f}, {4, 10.0f}, {5, 16.0f}, {6, 20.0f}, {7, 18.0f}};
+    p3.neighbors = {{8, 24.0f}, {0, 14.0f}, {1, 18.0f}, {3, 8.0f}, {4, 20.0f}, {5, 6.0f}, {6, 12.0f}, {7, 8.0f}};
+    p4.neighbors = {{8, 30.0f}, {0, 20.0f}, {1, 26.0f}, {2, 8.0f}, {4, 28.0f}, {5, 10.0f}, {6, 6.0f}, {7, 14.0f}};
+    p5.neighbors = {{8, 30.0f}, {0, 16.0f}, {1, 10.0f}, {2, 20.0f}, {3, 28.0f}, {5, 14.0f}, {6, 12.0f}, {7, 22.0f}};
+    p6.neighbors = {{8, 26.0f}, {0, 12.0f}, {1, 16.0f}, {2, 6.0f}, {3, 10.0f}, {4, 14.0f}, {6, 10.0f}, {7, 12.0f}};
+    p7.neighbors = {{8, 32.0f}, {0, 18.0f}, {1, 20.0f}, {2, 12.0f}, {3, 6.0f}, {4, 12.0f}, {5, 10.0f}, {7, 20.0f}};
+    p8.neighbors = {{8, 20.0f}, {0, 10.0f}, {1, 18.0f}, {2, 8.0f}, {3, 14.0f}, {4, 22.0f}, {5, 12.0f}, {6, 20.0f}};
     
     addBase(city4, p1);
     addBase(city4, p2);
     addBase(city4, p3);
     addBase(city4, p4);
     addBase(city4, p5);
+    addBase(city4, p6);
+    addBase(city4, p7);
+    addBase(city4, p8);
+    addBase(city4, p9);
     
-    // City 5: Quetta
+    // City 5: Quetta - 5 bases
     string city5 = "Quetta";
     addCity(city5);
     
