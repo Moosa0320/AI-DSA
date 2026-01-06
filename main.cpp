@@ -86,7 +86,7 @@ struct PriorityTarget {
     Base base;
     
     bool operator<(const PriorityTarget& other) const {
-        return base.priority < other.priority; // Max heap (higher priority first)
+        return base.priority < other.base.priority;
     }
 };
 
@@ -96,6 +96,18 @@ priority_queue<PriorityTarget> missionQueue;
 float calculateDistance(sf::Vector2f pos1, sf::Vector2f pos2);
 float calculateFuelRequired(sf::Vector2f from, sf::Vector2f to);
 int getDroneGridIndex();
+void drawGrid(sf::RenderWindow& window);
+void drawHomeBase(sf::RenderWindow& window, sf::Font& font);
+void drawDottedPath(sf::RenderWindow& window);
+void drawDestroyAnimation(sf::RenderWindow& window);
+void drawDrone(sf::RenderWindow& window);
+void drawBases(sf::RenderWindow& window, sf::Font& font);
+void drawCitySelectionUI(sf::RenderWindow& window, sf::Font& font);
+void drawBaseSelectionUI(sf::RenderWindow& window, sf::Font& font);
+void drawPriorityConfirmationUI(sf::RenderWindow& window, sf::Font& font);
+void drawMissionExecutionUI(sf::RenderWindow& window, sf::Font& font);
+void drawMissionCompleteUI(sf::RenderWindow& window, sf::Font& font);
+void drawMissionLogView(sf::RenderWindow& window, sf::Font& font);
 
 // Calculate distance
 float calculateDistance(sf::Vector2f pos1, sf::Vector2f pos2) {
@@ -165,19 +177,13 @@ void drawHomeBase(sf::RenderWindow& window, sf::Font& font) {
 }
 
 void drawDottedPath(sf::RenderWindow& window) {
-    if (currentPath.empty() || pathStep >= currentPath.size()) return;
+    if (missionQueue.empty() && !movingToTarget) return;
     
-    for (size_t i = pathStep; i < currentPath.size(); i++) {
-        sf::Vector2f startPos;
-        if (i == pathStep) {
-            startPos = sf::Vector2f(dronePosition.x * CELL_SIZE, dronePosition.y * CELL_SIZE);
-        } else {
-            Base& prevBase = allCityBases[currentPath[i - 1]];
-            startPos = sf::Vector2f(prevBase.x * CELL_SIZE, prevBase.y * CELL_SIZE);
-        }
-        
-        Base& nextBase = allCityBases[currentPath[i]];
-        sf::Vector2f endPos(nextBase.x * CELL_SIZE, nextBase.y * CELL_SIZE);
+    // Draw path to current target if moving
+    if (movingToTarget && !currentPath.empty() && pathStep < currentPath.size()) {
+        Base& targetBase = selectedBases[currentPath[pathStep]];
+        sf::Vector2f startPos(dronePosition.x * CELL_SIZE, dronePosition.y * CELL_SIZE);
+        sf::Vector2f endPos(targetBase.x * CELL_SIZE, targetBase.y * CELL_SIZE);
         
         float length = std::sqrt((endPos.x - startPos.x) * (endPos.x - startPos.x) + 
                                  (endPos.y - startPos.y) * (endPos.y - startPos.y));
@@ -202,6 +208,38 @@ void drawDottedPath(sf::RenderWindow& window) {
             dash[0].color = PATH_COLOR;
             dash[1].position = dashEnd;
             dash[1].color = PATH_COLOR;
+            window.draw(dash);
+        }
+    }
+    
+    // Draw path back to home if returning
+    if (returningHome) {
+        sf::Vector2f startPos(dronePosition.x * CELL_SIZE, dronePosition.y * CELL_SIZE);
+        sf::Vector2f endPos(homeBasePosition.x * CELL_SIZE, homeBasePosition.y * CELL_SIZE);
+        
+        float length = std::sqrt((endPos.x - startPos.x) * (endPos.x - startPos.x) + 
+                                 (endPos.y - startPos.y) * (endPos.y - startPos.y));
+        float dashLength = 10.0f;
+        float gapLength = 5.0f;
+        float totalSegment = dashLength + gapLength;
+        int numSegments = static_cast<int>(length / totalSegment);
+        
+        sf::Vector2f direction = endPos - startPos;
+        float dirLength = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+        if (dirLength > 0) {
+            direction.x /= dirLength;
+            direction.y /= dirLength;
+        }
+        
+        for (int j = 0; j < numSegments; j++) {
+            sf::Vector2f dashStart = startPos + direction * (j * totalSegment);
+            sf::Vector2f dashEnd = dashStart + direction * dashLength;
+            
+            sf::VertexArray dash(sf::PrimitiveType::Lines, 2);
+            dash[0].position = dashStart;
+            dash[0].color = sf::Color(255, 200, 0, 150); // Orange for return path
+            dash[1].position = dashEnd;
+            dash[1].color = sf::Color(255, 200, 0, 150);
             window.draw(dash);
         }
     }
@@ -512,6 +550,205 @@ void drawPriorityConfirmationUI(sf::RenderWindow& window, sf::Font& font) {
     }
 }
 
+void drawMissionExecutionUI(sf::RenderWindow& window, sf::Font& font) {
+    sf::RectangleShape sidebar(sf::Vector2f(static_cast<float>(SIDEBAR_WIDTH), static_cast<float>(WINDOW_HEIGHT)));
+    sidebar.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE), 0.0f));
+    sidebar.setFillColor(SIDEBAR_COLOR);
+    window.draw(sidebar);
+    
+    sf::Text title(font, "MISSION EXECUTING", 24);
+    title.setFillColor(sf::Color(255, 50, 50));
+    title.setStyle(sf::Text::Bold);
+    title.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 90.0f, 20.0f));
+    window.draw(title);
+    
+    // Fuel bar
+    float fuelPercent = currentFuel / totalFuel;
+    sf::RectangleShape fuelBarBg(sf::Vector2f(440.0f, 30.0f));
+    fuelBarBg.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, 70.0f));
+    fuelBarBg.setFillColor(sf::Color(50, 50, 50));
+    fuelBarBg.setOutlineThickness(2);
+    fuelBarBg.setOutlineColor(sf::Color::White);
+    window.draw(fuelBarBg);
+    
+    sf::RectangleShape fuelBar(sf::Vector2f(440.0f * fuelPercent, 30.0f));
+    fuelBar.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, 70.0f));
+    
+    sf::Color fuelColor;
+    if (fuelPercent > 0.5f) fuelColor = sf::Color(0, 255, 100);
+    else if (fuelPercent > 0.25f) fuelColor = sf::Color(255, 200, 0);
+    else fuelColor = sf::Color(255, 50, 50);
+    
+    fuelBar.setFillColor(fuelColor);
+    window.draw(fuelBar);
+    
+    sf::Text fuelText(font, "Fuel: " + std::to_string(static_cast<int>(currentFuel)) + "%", 14);
+    fuelText.setFillColor(sf::Color::White);
+    fuelText.setStyle(sf::Text::Bold);
+    fuelText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 210.0f, 75.0f));
+    window.draw(fuelText);
+    
+    // Next target info
+    int yPos = 120;
+    
+    if (!missionQueue.empty() && !movingToTarget) {
+        // Show next target details
+        priority_queue<PriorityTarget> tempQueue = missionQueue;
+        PriorityTarget nextTarget = tempQueue.top();
+        
+        sf::Text nextTargetTitle(font, "NEXT TARGET:", 16);
+        nextTargetTitle.setFillColor(sf::Color(255, 200, 100));
+        nextTargetTitle.setStyle(sf::Text::Bold);
+        nextTargetTitle.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(yPos)));
+        window.draw(nextTargetTitle);
+        yPos += 30;
+        
+        sf::Text targetName(font, nextTarget.base.name, 14);
+        targetName.setFillColor(sf::Color::White);
+        targetName.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(yPos)));
+        window.draw(targetName);
+        yPos += 25;
+        
+        sf::Text targetPriority(font, "Priority: " + std::to_string(nextTarget.base.priority), 12);
+        targetPriority.setFillColor(sf::Color(200, 200, 100));
+        targetPriority.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(yPos)));
+        window.draw(targetPriority);
+        yPos += 25;
+        
+        // Calculate fuel requirements
+        sf::Vector2f targetPos(nextTarget.base.x, nextTarget.base.y);
+        float fuelToTarget = calculateFuelRequired(dronePosition, targetPos);
+        float fuelToHome = calculateFuelRequired(targetPos, homeBasePosition);
+        float totalRequired = fuelToTarget + fuelToHome;
+        
+        sf::Text fuelToTargetText(font, "Fuel to Target: " + std::to_string(static_cast<int>(fuelToTarget)) + "%", 12);
+        fuelToTargetText.setFillColor(sf::Color(150, 200, 255));
+        fuelToTargetText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(yPos)));
+        window.draw(fuelToTargetText);
+        yPos += 20;
+        
+        sf::Text fuelReturnText(font, "Fuel to Return: " + std::to_string(static_cast<int>(fuelToHome)) + "%", 12);
+        fuelReturnText.setFillColor(sf::Color(150, 200, 255));
+        fuelReturnText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(yPos)));
+        window.draw(fuelReturnText);
+        yPos += 20;
+        
+        sf::Text totalRequiredText(font, "Total Required: " + std::to_string(static_cast<int>(totalRequired)) + "%", 12);
+        totalRequiredText.setFillColor(sf::Color(255, 200, 100));
+        totalRequiredText.setStyle(sf::Text::Bold);
+        totalRequiredText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(yPos)));
+        window.draw(totalRequiredText);
+        yPos += 25;
+        
+        // Reachability status
+        string reachStatus;
+        sf::Color reachColor;
+        if (currentFuel >= totalRequired) {
+            reachStatus = "STATUS: REACHABLE";
+            reachColor = sf::Color(0, 255, 100);
+        } else {
+            reachStatus = "STATUS: INSUFFICIENT FUEL";
+            reachColor = sf::Color(255, 50, 50);
+        }
+        
+        sf::Text reachText(font, reachStatus, 14);
+        reachText.setFillColor(reachColor);
+        reachText.setStyle(sf::Text::Bold);
+        reachText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(yPos)));
+        window.draw(reachText);
+        yPos += 35;
+        
+    } else if (movingToTarget) {
+        sf::Text currentAction(font, "APPROACHING TARGET...", 16);
+        currentAction.setFillColor(sf::Color(255, 200, 100));
+        currentAction.setStyle(sf::Text::Bold);
+        currentAction.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(yPos)));
+        window.draw(currentAction);
+        yPos += 35;
+    } else if (returningHome) {
+        sf::Text currentAction(font, "RETURNING TO BASE...", 16);
+        currentAction.setFillColor(sf::Color(255, 200, 0));
+        currentAction.setStyle(sf::Text::Bold);
+        currentAction.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(yPos)));
+        window.draw(currentAction);
+        yPos += 35;
+    }
+    
+    // Mission log
+    sf::Text logTitle(font, "MISSION LOG:", 16);
+    logTitle.setFillColor(sf::Color(200, 200, 100));
+    logTitle.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(yPos)));
+    window.draw(logTitle);
+    yPos += 30;
+    
+    sf::Text logContent(font, missionLog, 11);
+    logContent.setFillColor(TEXT_COLOR);
+    logContent.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(yPos)));
+    window.draw(logContent);
+}
+
+void drawMissionCompleteUI(sf::RenderWindow& window, sf::Font& font) {
+    sf::RectangleShape sidebar(sf::Vector2f(static_cast<float>(SIDEBAR_WIDTH), static_cast<float>(WINDOW_HEIGHT)));
+    sidebar.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE), 0.0f));
+    sidebar.setFillColor(SIDEBAR_COLOR);
+    window.draw(sidebar);
+    
+    sf::Text title(font, "MISSION COMPLETE", 26);
+    title.setFillColor(sf::Color(0, 255, 100));
+    title.setStyle(sf::Text::Bold);
+    title.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 90.0f, 30.0f));
+    window.draw(title);
+    
+    int destroyed = 0;
+    int skipped = 0;
+    for (const auto& status : targetStatuses) {
+        if (status == DESTROYED) destroyed++;
+        else if (status == SKIPPED) skipped++;
+    }
+    
+    sf::Text statsTitle(font, "MISSION STATISTICS", 18);
+    statsTitle.setFillColor(sf::Color(200, 200, 100));
+    statsTitle.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, 90.0f));
+    window.draw(statsTitle);
+    
+    int yPos = 130;
+    
+    sf::Text destroyedText(font, "Targets Destroyed: " + std::to_string(destroyed), 16);
+    destroyedText.setFillColor(sf::Color(0, 255, 100));
+    destroyedText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(yPos)));
+    window.draw(destroyedText);
+    yPos += 35;
+    
+    sf::Text skippedText(font, "Targets Skipped: " + std::to_string(skipped), 16);
+    skippedText.setFillColor(sf::Color(255, 200, 100));
+    skippedText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(yPos)));
+    window.draw(skippedText);
+    yPos += 35;
+    
+    sf::Text fuelText(font, "Remaining Fuel: " + std::to_string(static_cast<int>(currentFuel)) + "%", 16);
+    fuelText.setFillColor(sf::Color(100, 200, 255));
+    fuelText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(yPos)));
+    window.draw(fuelText);
+    yPos += 50;
+    
+    sf::Text logTitle(font, "MISSION LOG:", 18);
+    logTitle.setFillColor(sf::Color(200, 200, 100));
+    logTitle.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(yPos)));
+    window.draw(logTitle);
+    yPos += 35;
+    
+    sf::Text logContent(font, missionLog, 12);
+    logContent.setFillColor(TEXT_COLOR);
+    logContent.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(yPos)));
+    window.draw(logContent);
+    
+    sf::Text instruction(font, "Press R to restart | ESC to exit", 14);
+    instruction.setFillColor(sf::Color::White);
+    instruction.setStyle(sf::Text::Bold);
+    instruction.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 100.0f, static_cast<float>(WINDOW_HEIGHT) - 40.0f));
+    window.draw(instruction);
+}
+
 void drawMissionLogView(sf::RenderWindow& window, sf::Font& font) {
     sf::RectangleShape sidebar(sf::Vector2f(static_cast<float>(SIDEBAR_WIDTH), static_cast<float>(WINDOW_HEIGHT)));
     sidebar.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE), 0.0f));
@@ -525,240 +762,33 @@ void drawMissionLogView(sf::RenderWindow& window, sf::Font& font) {
     window.draw(title);
     
     sf::Text instruction(font, "Press ESC to return", 14);
-    instruction.setFillColor(sf::Color(200, 200, 200));
-    instruction.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 130.0f, 60.0f));
+    instruction.setFillColor(TEXT_COLOR);
+    instruction.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 150.0f, 60.0f));
     window.draw(instruction);
     
-    sf::RectangleShape logBox(sf::Vector2f(460.0f, 670.0f));
-    logBox.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 20.0f, 90.0f));
-    logBox.setFillColor(BOX_COLOR);
-    logBox.setOutlineThickness(2);
-    logBox.setOutlineColor(sf::Color(100, 150, 200));
-    window.draw(logBox);
-    
-    sf::Text logText(font, missionLog, 11);
-    logText.setFillColor(TEXT_COLOR);
-    logText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, 100.0f));
-    window.draw(logText);
-}
-
-void drawMissionExecutionUI(sf::RenderWindow& window, sf::Font& font) {
-    sf::RectangleShape sidebar(sf::Vector2f(static_cast<float>(SIDEBAR_WIDTH), static_cast<float>(WINDOW_HEIGHT)));
-    sidebar.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE), 0.0f));
-    sidebar.setFillColor(SIDEBAR_COLOR);
-    window.draw(sidebar);
-    
-    string statusMsg = returningHome ? "RETURNING HOME" : "MISSION EXECUTING";
-    sf::Color statusColor = returningHome ? sf::Color(255, 255, 0) : sf::Color(0, 255, 100);
-
-    sf::Text title(font, statusMsg, 22);
-    title.setFillColor(statusColor);
-    title.setStyle(sf::Text::Bold);
-    title.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 90.0f, 20.0f));
-    window.draw(title);
-
-    sf::Text fuelTitle(font, "FUEL STATUS", 16);
-    fuelTitle.setFillColor(sf::Color(255, 200, 100));
-    fuelTitle.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 20.0f, 60.0f));
-    window.draw(fuelTitle);
-
-    sf::RectangleShape fuelBg(sf::Vector2f(400.0f, 20.0f));
-    fuelBg.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, 85.0f));
-    fuelBg.setFillColor(sf::Color(60, 60, 60));
-    window.draw(fuelBg);
-
-    float fuelPercent = currentFuel / totalFuel;
-    sf::RectangleShape fuelBar(sf::Vector2f(400.0f * fuelPercent, 20.0f));
-    fuelBar.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, 85.0f));
-    fuelBar.setFillColor(fuelPercent > 0.5f ? sf::Color(0, 200, 100) : 
-                         fuelPercent > 0.25f ? sf::Color(255, 200, 0) : sf::Color(255, 50, 50));
-    window.draw(fuelBar);
-
-    stringstream fuelSS;
-    fuelSS << (int)currentFuel << "%";
-    sf::Text fuelText(font, fuelSS.str(), 14);
-    fuelText.setFillColor(sf::Color::White);
-    fuelText.setStyle(sf::Text::Bold);
-    fuelText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 230.0f, 87.0f));
-    window.draw(fuelText);
-
-    sf::Text targetsTitle(font, "MISSION TARGETS", 16);
-    targetsTitle.setFillColor(sf::Color(255, 200, 100));
-    targetsTitle.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 20.0f, 130.0f));
-    window.draw(targetsTitle);
-
-    int yPos = 160;
-    for (size_t i = 0; i < selectedBases.size(); i++) {
-        TargetStatus status = targetStatuses[i];
-        bool isCurrent = static_cast<int>(i) == currentTargetIndex;
-        
-        sf::RectangleShape targetBox(sf::Vector2f(440.0f, 90.0f));
-        targetBox.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(yPos)));
-        targetBox.setFillColor(isCurrent ? sf::Color(60, 60, 100) : BOX_COLOR);
-        targetBox.setOutlineThickness(2);
-        targetBox.setOutlineColor(status == DESTROYED ? sf::Color(0, 255, 0) : 
-                                  status == SKIPPED ? sf::Color(150, 150, 0) :
-                                  isCurrent ? sf::Color(255, 255, 0) : sf::Color(100, 100, 100));
-        window.draw(targetBox);
-        
-        string statusIcon = status == DESTROYED ? "[X]" : 
-                           status == SKIPPED ? "[S]" : 
-                           isCurrent ? "[>]" : "[ ]";
-        sf::Color iconColor = status == DESTROYED ? sf::Color::Green : 
-                             status == SKIPPED ? sf::Color::Yellow :
-                             isCurrent ? sf::Color::Yellow : sf::Color(150, 150, 150);
-        
-        sf::Text statusText(font, statusIcon, 16);
-        statusText.setFillColor(iconColor);
-        statusText.setStyle(sf::Text::Bold);
-        statusText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 45.0f, static_cast<float>(yPos) + 35.0f));
-        window.draw(statusText);
-        
-        sf::Text targetText(font, selectedBases[i].name, 14);
-        targetText.setFillColor(status != PENDING ? sf::Color(180, 180, 180) : sf::Color::White);
-        targetText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 95.0f, static_cast<float>(yPos) + 8.0f));
-        window.draw(targetText);
-        
-        if (status == PENDING) {
-            sf::Vector2f targetPos(selectedBases[i].x, selectedBases[i].y);
-            float fuelToTarget = calculateFuelRequired(dronePosition, targetPos);
-            float fuelToHome = calculateFuelRequired(targetPos, homeBasePosition);
-            
-            sf::Text fuelToTargetText(font, "To Target: " + std::to_string((int)fuelToTarget) + "%", 11);
-            fuelToTargetText.setFillColor(sf::Color(150, 200, 255));
-            fuelToTargetText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 95.0f, static_cast<float>(yPos) + 30.0f));
-            window.draw(fuelToTargetText);
-            
-            sf::Text fuelToHomeText(font, "To Home: " + std::to_string((int)fuelToHome) + "%", 11);
-            fuelToHomeText.setFillColor(sf::Color(255, 200, 150));
-            fuelToHomeText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 95.0f, static_cast<float>(yPos) + 48.0f));
-            window.draw(fuelToHomeText);
-            
-            float totalRequired = fuelToTarget + fuelToHome;
-            bool canReach = currentFuel >= totalRequired;
-            sf::Text reachText(font, canReach ? "REACHABLE" : "UNREACHABLE", 10);
-            reachText.setFillColor(canReach ? sf::Color(0, 255, 100) : sf::Color(255, 50, 50));
-            reachText.setStyle(sf::Text::Bold);
-            reachText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 95.0f, static_cast<float>(yPos) + 66.0f));
-            window.draw(reachText);
-        } else if (status == DESTROYED) {
-            sf::Text destroyedText(font, "DESTROYED", 12);
-            destroyedText.setFillColor(sf::Color(0, 255, 0));
-            destroyedText.setStyle(sf::Text::Bold);
-            destroyedText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 95.0f, static_cast<float>(yPos) + 40.0f));
-            window.draw(destroyedText);
-        } else if (status == SKIPPED) {
-            sf::Text skippedText(font, "SKIPPED - INSUFFICIENT FUEL", 11);
-            skippedText.setFillColor(sf::Color::Yellow);
-            skippedText.setStyle(sf::Text::Bold);
-            skippedText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 95.0f, static_cast<float>(yPos) + 40.0f));
-            window.draw(skippedText);
-        }
-        
-        yPos += 100;
-    }
-
-    if (returningHome) {
-        float fuelToHome = calculateFuelRequired(dronePosition, homeBasePosition);
-        sf::Text homeInfo(font, "Fuel to Home: " + std::to_string((int)fuelToHome) + "%", 14);
-        homeInfo.setFillColor(sf::Color(255, 255, 100));
-        homeInfo.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 120.0f, static_cast<float>(yPos) + 10.0f));
-        window.draw(homeInfo);
-    }
-
-    sf::Text instructions(font, "Press L to view Mission Log", 14);
-    instructions.setFillColor(sf::Color(150, 150, 200));
-    instructions.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 100.0f, static_cast<float>(WINDOW_HEIGHT) - 50.0f));
-    window.draw(instructions);
-}
-
-void drawMissionCompleteUI(sf::RenderWindow& window, sf::Font& font) {
-    sf::RectangleShape sidebar(sf::Vector2f(static_cast<float>(SIDEBAR_WIDTH), static_cast<float>(WINDOW_HEIGHT)));
-    sidebar.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE), 0.0f));
-    sidebar.setFillColor(SIDEBAR_COLOR);
-    window.draw(sidebar);
-    
-    int destroyedCount = 0;
-    for (TargetStatus status : targetStatuses) {
-        if (status == DESTROYED) destroyedCount++;
-    }
-
-    bool allDestroyed = destroyedCount == static_cast<int>(selectedBases.size());
-
-    sf::Text title(font, allDestroyed ? "MISSION COMPLETE" : "MISSION INCOMPLETE", 24);
-    title.setFillColor(allDestroyed ? sf::Color(0, 255, 100) : sf::Color(255, 200, 0));
-    title.setStyle(sf::Text::Bold);
-    title.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 70.0f, 30.0f));
-    window.draw(title);
-
-    sf::Text targetsSummary(font, "Targets Destroyed: " + std::to_string(destroyedCount) + " / " + 
-                           std::to_string(selectedBases.size()), 18);
-    targetsSummary.setFillColor(sf::Color::White);
-    targetsSummary.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 90.0f, 80.0f));
-    window.draw(targetsSummary);
-
-    sf::Text fuelRemaining(font, "Fuel Remaining: " + std::to_string((int)currentFuel) + "%", 16);
-    fuelRemaining.setFillColor(sf::Color(150, 200, 255));
-    fuelRemaining.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 100.0f, 110.0f));
-    window.draw(fuelRemaining);
-
-    int yPos = 160;
-    for (size_t i = 0; i < selectedBases.size(); i++) {
-        TargetStatus status = targetStatuses[i];
-        
-        sf::RectangleShape statusBox(sf::Vector2f(440.0f, 50.0f));
-        statusBox.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(yPos)));
-        statusBox.setFillColor(BOX_COLOR);
-        statusBox.setOutlineThickness(2);
-        statusBox.setOutlineColor(status == DESTROYED ? sf::Color(0, 255, 0) : sf::Color(150, 150, 0));
-        window.draw(statusBox);
-        
-        string statusIcon = status == DESTROYED ? "[X]" : "[S]";
-        sf::Color iconColor = status == DESTROYED ? sf::Color::Green : sf::Color::Yellow;
-        
-        sf::Text iconText(font, statusIcon, 16);
-        iconText.setFillColor(iconColor);
-        iconText.setStyle(sf::Text::Bold);
-        iconText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 45.0f, static_cast<float>(yPos) + 15.0f));
-        window.draw(iconText);
-        
-        sf::Text baseName(font, selectedBases[i].name, 14);
-        baseName.setFillColor(sf::Color::White);
-        baseName.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 90.0f, static_cast<float>(yPos) + 5.0f));
-        window.draw(baseName);
-        
-        sf::Text statusLabel(font, status == DESTROYED ? "DESTROYED" : "SKIPPED", 12);
-        statusLabel.setFillColor(iconColor);
-        statusLabel.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 90.0f, static_cast<float>(yPos) + 26.0f));
-        window.draw(statusLabel);
-        
-        yPos += 60;
-    }
-
-    sf::Text instruction1(font, "Press L to view detailed log", 14);
-    instruction1.setFillColor(sf::Color(150, 200, 255));
-    instruction1.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 100.0f, static_cast<float>(WINDOW_HEIGHT) - 80.0f));
-    window.draw(instruction1);
-
-    sf::Text instruction2(font, "Press R to restart", 14);
-    instruction2.setFillColor(sf::Color(200, 200, 200));
-    instruction2.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 130.0f, static_cast<float>(WINDOW_HEIGHT) - 50.0f));
-    window.draw(instruction2);
+    sf::Text logContent(font, missionLog, 12);
+    logContent.setFillColor(TEXT_COLOR);
+    logContent.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, 100.0f));
+    window.draw(logContent);
 }
 
 int main() {
+    // SFML 3.x uses Vector2u for VideoMode
     sf::RenderWindow window(sf::VideoMode({WINDOW_WIDTH, WINDOW_HEIGHT}), "Drone Attack System");
     window.setFramerateLimit(60);
+    
     sf::Font font;
     if (!font.openFromFile("arial.ttf")) {
         cout << "Error loading font!" << endl;
         return -1;
     }
-
+    
     sf::Clock clock;
-
+    
     while (window.isOpen()) {
+        // SFML 3.x uses optional for pollEvent
         while (auto event = window.pollEvent()) {
+            // SFML 3.x uses event->is<T>() and event->getIf<T>()
             if (event->is<sf::Event::Closed>()) {
                 window.close();
             }
@@ -768,32 +798,22 @@ int main() {
                     if (keyPress->code >= sf::Keyboard::Key::Num1 && keyPress->code <= sf::Keyboard::Key::Num5) {
                         int cityIndex = static_cast<int>(keyPress->code) - static_cast<int>(sf::Keyboard::Key::Num1);
                         vector<City> cities = targetSystem.getAllCities();
+                        
                         if (cityIndex < static_cast<int>(cities.size())) {
                             selectedCity = cities[cityIndex].name;
                             allCityBases = targetSystem.getBasesFromCity(selectedCity);
-                            
-                            Base homeBase;
-                            homeBase.name = "Home Base";
-                            homeBase.x = homeBasePosition.x;
-                            homeBase.y = homeBasePosition.y;
-                            homeBase.priority = 0;
-                            allCityBases.push_back(homeBase);
-                            
-                            currentState = BASE_SELECTION;
                             selectedBaseIndices.clear();
-                            selectedBases.clear();
+                            currentState = BASE_SELECTION;
                         }
                     }
                 }
                 else if (currentState == BASE_SELECTION) {
-                    int numBases = static_cast<int>(allCityBases.size()) - 1;
-                    
-                    if (keyPress->code >= sf::Keyboard::Key::Num0 && 
-                        keyPress->code <= sf::Keyboard::Key::Num9) {
+                    if (keyPress->code >= sf::Keyboard::Key::Num0 && keyPress->code <= sf::Keyboard::Key::Num9) {
                         int baseIndex = static_cast<int>(keyPress->code) - static_cast<int>(sf::Keyboard::Key::Num0);
                         
-                        if (baseIndex < numBases) {
+                        if (baseIndex < static_cast<int>(allCityBases.size()) - 1) {
                             auto it = std::find(selectedBaseIndices.begin(), selectedBaseIndices.end(), baseIndex);
+                            
                             if (it != selectedBaseIndices.end()) {
                                 selectedBaseIndices.erase(it);
                             } else {
@@ -803,34 +823,37 @@ int main() {
                             }
                         }
                     }
-                    if (keyPress->code == sf::Keyboard::Key::Enter && !selectedBaseIndices.empty()) {
-                        selectedBases.clear();
-                        for (int idx : selectedBaseIndices) {
-                            selectedBases.push_back(allCityBases[idx]);
+                    else if (keyPress->code == sf::Keyboard::Key::Enter) {
+                        if (!selectedBaseIndices.empty()) {
+                            selectedBases.clear();
+                            targetStatuses.clear();
+                            
+                            for (int idx : selectedBaseIndices) {
+                                selectedBases.push_back(allCityBases[idx]);
+                                targetStatuses.push_back(PENDING);
+                            }
+                            
+                            std::sort(selectedBases.begin(), selectedBases.end(), 
+                                [](const Base& a, const Base& b) {
+                                    return a.priority > b.priority;
+                                });
+                            
+                            currentState = PRIORITY_CONFIRMATION;
                         }
-                        
-                        std::sort(selectedBases.begin(), selectedBases.end(), 
-                            [](const Base& a, const Base& b) {
-                                return a.priority > b.priority;
-                            });
-                        
-                        targetStatuses.clear();
-                        targetStatuses.resize(selectedBases.size(), PENDING);
-                        
-                        currentState = PRIORITY_CONFIRMATION;
                     }
                 }
                 else if (currentState == PRIORITY_CONFIRMATION) {
                     if (keyPress->code == sf::Keyboard::Key::Space) {
-                        currentState = MISSION_EXECUTION;
                         missionStarted = true;
-                        
-                        // Initialize DroneState
-                        droneState.resetDrone();
-                        droneState.updatePosition(static_cast<int>(homeBasePosition.x), 
-                                                 static_cast<int>(homeBasePosition.y));
+                        currentFuel = totalFuel;
+                        dronePosition = homeBasePosition;
+                        missionLog = "=== MISSION STARTED ===\n";
+                        missionLog += "Initial Fuel: 100%\n";
+                        missionLog += "Targets Selected: " + std::to_string(selectedBases.size()) + "\n";
+                        missionLog += "Home Base: (" + std::to_string(static_cast<int>(homeBasePosition.x)) + ", " + std::to_string(static_cast<int>(homeBasePosition.y)) + ")\n\n";
                         
                         while (!missionQueue.empty()) missionQueue.pop();
+                        
                         for (size_t i = 0; i < selectedBases.size(); i++) {
                             PriorityTarget pt;
                             pt.index = static_cast<int>(i);
@@ -838,33 +861,14 @@ int main() {
                             missionQueue.push(pt);
                         }
                         
-                        missionLog = "=== MISSION LOG ===\n\n";
-                        missionLog += "Mission Start\n";
-                        missionLog += "City: " + selectedCity + "\n";
-                        missionLog += "Targets Selected: " + std::to_string(selectedBases.size()) + "\n";
-                        missionLog += "Starting Fuel: " + std::to_string((int)currentFuel) + "%\n\n";
-                        missionLog += "--- Priority Order ---\n";
-                        for (size_t i = 0; i < selectedBases.size(); i++) {
-                            missionLog += std::to_string(i + 1) + ". " + selectedBases[i].name + 
-                                         " (Priority: " + std::to_string(selectedBases[i].priority) + ")\n";
-                        }
-                        missionLog += "\n--- Mission Execution ---\n\n";
-                        
-                        currentTargetIndex = -1;
+                        currentState = MISSION_EXECUTION;
                     }
-                    if (keyPress->code == sf::Keyboard::Key::R) {
+                    else if (keyPress->code == sf::Keyboard::Key::R) {
                         currentState = BASE_SELECTION;
-                    }
-                }
-                else if (currentState == MISSION_EXECUTION) {
-                    if (keyPress->code == sf::Keyboard::Key::L) {
-                        currentState = MISSION_LOG_VIEW;
+                        selectedBaseIndices.clear();
                     }
                 }
                 else if (currentState == MISSION_COMPLETE) {
-                    if (keyPress->code == sf::Keyboard::Key::L) {
-                        currentState = MISSION_LOG_VIEW;
-                    }
                     if (keyPress->code == sf::Keyboard::Key::R) {
                         currentState = CITY_SELECTION;
                         selectedCity = "";
@@ -872,218 +876,187 @@ int main() {
                         selectedBases.clear();
                         allCityBases.clear();
                         targetStatuses.clear();
-                        while (!missionQueue.empty()) missionQueue.pop();
-                        dronePosition = homeBasePosition;
-                        currentFuel = totalFuel;
                         missionStarted = false;
                         returningHome = false;
                         currentTargetIndex = -1;
-                        currentPath.clear();
                         pathStep = 0;
                         movingToTarget = false;
-                        droneState.resetDrone();
+                        currentPath.clear();
+                        dronePosition = homeBasePosition;
+                        currentFuel = totalFuel;
+                        missionLog = "";
+                    }
+                    else if (keyPress->code == sf::Keyboard::Key::Escape) {
+                        window.close();
                     }
                 }
-                else if (currentState == MISSION_LOG_VIEW) {
-                    if (keyPress->code == sf::Keyboard::Key::Escape) {
-                        currentState = MISSION_COMPLETE;
-                    }
-                }
-            }
-        }
-        
-        float deltaTime = clock.restart().asSeconds();
-        droneLightPulse += deltaTime * 3.0f;
-        
-        if (showDestroyAnimation) {
-            destroyAnimationTimer += deltaTime;
-            if (destroyAnimationTimer >= 2.0f) {
-                showDestroyAnimation = false;
-                destroyAnimationTimer = 0.0f;
             }
         }
         
         if (currentState == MISSION_EXECUTION && missionStarted) {
+            float deltaTime = clock.restart().asSeconds();
+            
+            if (showDestroyAnimation) {
+                destroyAnimationTimer += deltaTime;
+                if (destroyAnimationTimer >= 2.0f) {
+                    showDestroyAnimation = false;
+                    destroyAnimationTimer = 0.0f;
+                }
+            }
+            
             if (!returningHome && !missionQueue.empty()) {
-                if (!movingToTarget && currentTargetIndex == -1) {
+                if (!movingToTarget) {
                     PriorityTarget nextTarget = missionQueue.top();
                     missionQueue.pop();
                     
                     currentTargetIndex = nextTarget.index;
-                    
                     sf::Vector2f targetPos(nextTarget.base.x, nextTarget.base.y);
-                    float fuelToTarget = calculateFuelRequired(dronePosition, targetPos);
-                    float fuelToHome = calculateFuelRequired(targetPos, homeBasePosition);
-                    float totalFuelNeeded = fuelToTarget + fuelToHome;
                     
-                    if (currentFuel >= totalFuelNeeded) {
-                        missionLog += "Target: " + nextTarget.base.name + "\n";
-                        missionLog += "Status: REACHABLE\n";
-                        missionLog += "Priority: " + std::to_string(nextTarget.base.priority) + "\n";
-                        missionLog += "Fuel to Target: " + std::to_string((int)fuelToTarget) + "%\n";
-                        missionLog += "Fuel to Home: " + std::to_string((int)fuelToHome) + "%\n";
+                    float fuelNeeded = calculateFuelRequired(dronePosition, targetPos);
+                    float returnFuel = calculateFuelRequired(targetPos, homeBasePosition);
+                    
+                    // Log mission attempt
+                    missionLog += "==================\n";
+                    missionLog += "Target: " + nextTarget.base.name + "\n";
+                    missionLog += "Priority: " + std::to_string(nextTarget.base.priority) + "\n";
+                    missionLog += "Fuel to target: " + std::to_string(static_cast<int>(fuelNeeded)) + "%\n";
+                    missionLog += "Fuel to return: " + std::to_string(static_cast<int>(returnFuel)) + "%\n";
+                    missionLog += "Total needed: " + std::to_string(static_cast<int>(fuelNeeded + returnFuel)) + "%\n";
+                    missionLog += "Current fuel: " + std::to_string(static_cast<int>(currentFuel)) + "%\n";
+                    
+                    if (currentFuel >= fuelNeeded + returnFuel) {
+                        // Execute mission
+                        missionLog += "Status: ENGAGING TARGET\n";
+                        movingToTarget = true;
+                        currentPath.clear();
                         
-                        int targetIdx = -1;
-                        for (size_t i = 0; i < allCityBases.size() - 1; i++) {
-                            if (allCityBases[i].x == nextTarget.base.x && 
-                                allCityBases[i].y == nextTarget.base.y) {
-                                targetIdx = static_cast<int>(i);
+                        for (size_t i = 0; i < selectedBases.size(); i++) {
+                            if (selectedBases[i].x == nextTarget.base.x && 
+                                selectedBases[i].y == nextTarget.base.y) {
+                                currentPath.push_back(static_cast<int>(i));
                                 break;
                             }
                         }
-                        
-                        if (targetIdx != -1) {
-                            currentPath.clear();
-                            currentPath.push_back(targetIdx);
-                            pathStep = 0;
-                            movingToTarget = true;
-                        }
+                        pathStep = 0;
                     } else {
+                        // Skip target
                         targetStatuses[currentTargetIndex] = SKIPPED;
-                        
-                        missionLog += "Target: " + nextTarget.base.name + "\n";
-                        missionLog += "Status: UNREACHABLE - SKIPPED\n";
-                        missionLog += "Priority: " + std::to_string(nextTarget.base.priority) + "\n";
-                        missionLog += "Required Fuel: " + std::to_string((int)totalFuelNeeded) + "%\n";
-                        missionLog += "Available Fuel: " + std::to_string((int)currentFuel) + "%\n\n";
-                        
-                        currentTargetIndex = -1;
+                        missionLog += "Status: SKIPPED - Insufficient fuel!\n";
                     }
+                    
+                    // Show next target if available
+                    if (!missionQueue.empty()) {
+                        PriorityTarget peekNext = missionQueue.top();
+                        missionLog += "------------------\n";
+                        missionLog += "Next in queue: " + peekNext.base.name + "\n";
+                        missionLog += "Priority: " + std::to_string(peekNext.base.priority) + "\n";
+                    } else if (currentFuel >= fuelNeeded + returnFuel) {
+                        missionLog += "------------------\n";
+                        missionLog += "Last target - will return to base\n";
+                    }
+                    missionLog += "\n";
                 }
                 
-                if (movingToTarget && !currentPath.empty() && pathStep < currentPath.size()) {
-                    Base& targetBase = allCityBases[currentPath[pathStep]];
+                if (movingToTarget && !currentPath.empty()) {
+                    Base& targetBase = selectedBases[currentPath[pathStep]];
                     sf::Vector2f targetPos(targetBase.x, targetBase.y);
                     
                     sf::Vector2f direction = targetPos - dronePosition;
                     float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
                     
-                    if (distance < 0.1f) {
-                        dronePosition = targetPos;
-                        pathStep++;
+                    if (distance > 0.05f) {
+                        direction.x /= distance;
+                        direction.y /= distance;
                         
-                        if (pathStep >= currentPath.size()) {
-                            targetStatuses[currentTargetIndex] = DESTROYED;
-                            
-                            // Update DroneState
-                            float fuelUsed = calculateFuelRequired(dronePosition, targetPos);
-                            droneState.pushMission(targetBase.name, fuelUsed);
-                            droneState.updatePosition(static_cast<int>(targetPos.x), 
-                                                     static_cast<int>(targetPos.y));
-                            
-                            missionLog += "Action: TARGET DESTROYED\n";
-                            missionLog += "Remaining Fuel: " + std::to_string((int)currentFuel) + "%\n\n";
-                            
-                            showDestroyAnimation = true;
-                            destroyAnimationTimer = 0.0f;
-                            destroyAnimationPos = sf::Vector2f(targetPos.x * CELL_SIZE, targetPos.y * CELL_SIZE);
-                            
-                            movingToTarget = false;
-                            currentPath.clear();
-                            pathStep = 0;
-                            currentTargetIndex = -1;
-                        }
+                        float moveSpeed = 2.0f * deltaTime;
+                        dronePosition.x += direction.x * moveSpeed;
+                        dronePosition.y += direction.y * moveSpeed;
+                        
+                        currentFuel -= FUEL_PER_GRID_UNIT * moveSpeed;
                     } else {
-                        float speed = 2.0f * deltaTime;
-                        if (distance > 0) {
-                            direction.x = direction.x / distance * speed;
-                            direction.y = direction.y / distance * speed;
-                        }
-                        dronePosition += direction;
+                        dronePosition = targetPos;
+                        targetStatuses[currentTargetIndex] = DESTROYED;
                         
-                        currentFuel -= 0.5f * deltaTime;
-                        if (currentFuel < 0) currentFuel = 0;
+                        missionLog += ">>> TARGET DESTROYED: " + targetBase.name + " <<<\n\n";
+                        
+                        showDestroyAnimation = true;
+                        destroyAnimationTimer = 0.0f;
+                        destroyAnimationPos = sf::Vector2f(targetBase.x * CELL_SIZE, targetBase.y * CELL_SIZE);
+                        
+                        movingToTarget = false;
+                        currentPath.clear();
+                        pathStep = 0;
                     }
                 }
             }
-            else if (!returningHome && missionQueue.empty() && currentTargetIndex == -1) {
-                returningHome = true;
-                currentPath.clear();
-                pathStep = 0;
-                movingToTarget = false;
-                
-                int destroyedCount = 0;
-                for (TargetStatus status : targetStatuses) {
-                    if (status == DESTROYED) destroyedCount++;
+            else if (!returningHome && missionQueue.empty()) {
+                if (!movingToTarget) {
+                    missionLog += "==================\n";
+                    missionLog += "All targets processed\n";
+                    missionLog += "Returning to HOME BASE\n";
+                    missionLog += "==================\n\n";
                 }
-                
-                missionLog += "--- Mission Summary ---\n";
-                missionLog += "Targets Destroyed: " + std::to_string(destroyedCount) + " / " + 
-                             std::to_string(selectedBases.size()) + "\n";
-                missionLog += "Returning to home base...\n\n";
+                returningHome = true;
             }
             
             if (returningHome) {
                 sf::Vector2f direction = homeBasePosition - dronePosition;
                 float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
                 
-                if (distance < 0.1f) {
-                    dronePosition = homeBasePosition;
-                    droneState.updatePosition(static_cast<int>(homeBasePosition.x), 
-                                             static_cast<int>(homeBasePosition.y));
-                    currentState = MISSION_COMPLETE;
+                if (distance > 0.05f) {
+                    direction.x /= distance;
+                    direction.y /= distance;
                     
-                    int destroyedCount = 0;
-                    for (TargetStatus status : targetStatuses) {
-                        if (status == DESTROYED) destroyedCount++;
-                    }
+                    float moveSpeed = 2.0f * deltaTime;
+                    dronePosition.x += direction.x * moveSpeed;
+                    dronePosition.y += direction.y * moveSpeed;
                     
-                    if (destroyedCount == static_cast<int>(selectedBases.size())) {
-                        missionLog += "=== MISSION COMPLETE ===\n";
-                    } else {
-                        missionLog += "=== MISSION INCOMPLETE ===\n";
-                    }
-                    missionLog += "Returned to home base\n";
-                    missionLog += "Final Fuel: " + std::to_string((int)currentFuel) + "%\n";
+                    currentFuel -= FUEL_PER_GRID_UNIT * moveSpeed;
                 } else {
-                    float speed = 2.0f * deltaTime;
-                    if (distance > 0) {
-                        direction.x = direction.x / distance * speed;
-                        direction.y = direction.y / distance * speed;
-                    }
-                    dronePosition += direction;
-                    
-                    currentFuel -= 0.3f * deltaTime;
-                    if (currentFuel < 0) currentFuel = 0;
+                    dronePosition = homeBasePosition;
+                    missionLog += ">>> DRONE SAFELY RETURNED TO HOME BASE <<<\n";
+                    missionLog += "Mission fuel remaining: " + std::to_string(static_cast<int>(currentFuel)) + "%\n";
+                    currentState = MISSION_COMPLETE;
                 }
             }
+        } else {
+            clock.restart();
         }
+        
+        droneLightPulse += 0.1f;
         
         window.clear(BACKGROUND_COLOR);
         
-        drawGrid(window);
-        drawHomeBase(window, font);
-        
         if (currentState >= PRIORITY_CONFIRMATION) {
+            drawGrid(window);
+            drawHomeBase(window, font);
             drawBases(window, font);
-            drawDrone(window);
             drawDottedPath(window);
+            drawDrone(window);
             drawDestroyAnimation(window);
         }
         
-        switch (currentState) {
-            case CITY_SELECTION:
-                drawCitySelectionUI(window, font);
-                break;
-            case BASE_SELECTION:
-                drawBaseSelectionUI(window, font);
-                break;
-            case PRIORITY_CONFIRMATION:
-                drawPriorityConfirmationUI(window, font);
-                break;
-            case MISSION_EXECUTION:
-                drawMissionExecutionUI(window, font);
-                break;
-            case MISSION_COMPLETE:
-                drawMissionCompleteUI(window, font);
-                break;
-            case MISSION_LOG_VIEW:
-                drawMissionLogView(window, font);
-                break;
+        if (currentState == CITY_SELECTION) {
+            drawCitySelectionUI(window, font);
+        }
+        else if (currentState == BASE_SELECTION) {
+            drawBaseSelectionUI(window, font);
+        }
+        else if (currentState == PRIORITY_CONFIRMATION) {
+            drawPriorityConfirmationUI(window, font);
+        }
+        else if (currentState == MISSION_EXECUTION) {
+            drawMissionExecutionUI(window, font);
+        }
+        else if (currentState == MISSION_COMPLETE) {
+            drawMissionCompleteUI(window, font);
+        }
+        else if (currentState == MISSION_LOG_VIEW) {
+            drawMissionLogView(window, font);
         }
         
         window.display();
     }
-
+    
     return 0;
 }

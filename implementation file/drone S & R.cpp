@@ -127,7 +127,8 @@ void DroneState::resetDrone() {
     clearHistory();
 }
 
-std::string DroneState::getStateSnapshot(){
+// FIXED: Added const qualifier to match header declaration
+std::string DroneState::getStateSnapshot() const {
     std::ostringstream oss;
     oss << "=== DRONE STATE SNAPSHOT ===" << std::endl;
     oss << "Position: (" << positionX << ", " << positionY << ")" << std::endl;

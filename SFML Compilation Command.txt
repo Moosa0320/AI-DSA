@@ -1,0 +1,1 @@
+g++ main.cpp "implementation file/TargetLocations.cpp" "implementation file/drone S & R.cpp" -I "header files" -o app -lsfml-graphics -lsfml-window -lsfml-system
