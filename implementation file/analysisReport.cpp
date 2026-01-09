@@ -1,4 +1,4 @@
-#include "AnalysisReport.h"
+#include "analysisReport.h"
 #include <sstream>
 #include <iomanip>
 
@@ -99,7 +99,11 @@ string AnalysisReport::generateReport() const
 void AnalysisReport::displayReport(sf::RenderWindow& window)
 {
     sf::Font font;
-    font.openFromFile("arial.ttf");
+    if (!font.openFromFile("arial.ttf"))
+    {
+        // Font failed to load — do not attempt to draw text
+        return;
+    }
 
     sf::Text reportText(font, generateReport(), 14);
     reportText.setFillColor(sf::Color::White);

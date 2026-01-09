@@ -9,7 +9,7 @@
 using namespace std;
 
 class AnalysisReport {
-private: .
+private: 
     struct MissionLog {
         string baseName;        // Target base name
         string status;          // "Pending", "Completed", "Failed"
