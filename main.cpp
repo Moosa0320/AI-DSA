@@ -413,147 +413,90 @@ void drawBases(sf::RenderWindow &window, sf::Font &font)
 
 void drawWeatherInfo(sf::RenderWindow &window, sf::Font &font)
 {
-    if (!weatherAPI || !weatherInitialized)
-        return;
-
+    if (!weatherAPI || !weatherInitialized) return;
+    
     Weather currentWeather = weatherAPI->getCurrentWeather();
-
-    // Weather display box - positioned nicely in sidebar
-    sf::RectangleShape weatherBox(sf::Vector2f(440.0f, 140.0f));
-    weatherBox.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(WINDOW_HEIGHT) - 170.0f));
-    weatherBox.setFillColor(sf::Color(30, 35, 50, 200));
+    
+    // Weather display box - compact version at bottom
+    sf::RectangleShape weatherBox(sf::Vector2f(440.0f, 110.0f));
+    weatherBox.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(WINDOW_HEIGHT) - 180.0f));
+    weatherBox.setFillColor(sf::Color(30, 35, 50, 220));
     weatherBox.setOutlineThickness(2);
     weatherBox.setOutlineColor(sf::Color(70, 130, 180));
     window.draw(weatherBox);
-
-    // Weather icon/header background
-    sf::RectangleShape weatherHeader(sf::Vector2f(440.0f, 30.0f));
-    weatherHeader.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(WINDOW_HEIGHT) - 170.0f));
+    
+    // Weather header
+    sf::RectangleShape weatherHeader(sf::Vector2f(440.0f, 25.0f));
+    weatherHeader.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 30.0f, static_cast<float>(WINDOW_HEIGHT) - 180.0f));
     weatherHeader.setFillColor(sf::Color(40, 80, 120));
     window.draw(weatherHeader);
-
-    // Weather title with icon
-    sf::Text weatherTitle(font, "CURRENT WEATHER", 16);
+    
+    // Weather title
+    sf::Text weatherTitle(font, "CURRENT WEATHER", 14);
     weatherTitle.setFillColor(sf::Color(200, 230, 255));
     weatherTitle.setStyle(sf::Text::Bold);
-    weatherTitle.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(WINDOW_HEIGHT) - 165.0f));
+    weatherTitle.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 145.0f, static_cast<float>(WINDOW_HEIGHT) - 177.0f));
     window.draw(weatherTitle);
-
+    
     // City name
-    sf::Text cityText(font, selectedCity, 14);
+    sf::Text cityText(font, selectedCity, 13);
     cityText.setFillColor(sf::Color::White);
     cityText.setStyle(sf::Text::Bold);
-    cityText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(WINDOW_HEIGHT) - 135.0f));
+    cityText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 45.0f, static_cast<float>(WINDOW_HEIGHT) - 148.0f));
     window.draw(cityText);
-
-    // Temperature display with thermometer icon
-    sf::RectangleShape tempBarBg(sf::Vector2f(120.0f, 12.0f));
-    tempBarBg.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 180.0f, static_cast<float>(WINDOW_HEIGHT) - 132.0f));
-    tempBarBg.setFillColor(sf::Color(50, 50, 50, 200));
-    tempBarBg.setOutlineThickness(1);
-    tempBarBg.setOutlineColor(sf::Color(100, 100, 100));
-    window.draw(tempBarBg);
-
-    // Temperature indicator bar (visual representation)
-    float tempRatio = (currentWeather.temperature + 10.0f) / 50.0f; // Scale -10°C to 40°C to 0-1
-    if (tempRatio < 0)
-        tempRatio = 0;
-    if (tempRatio > 1)
-        tempRatio = 1;
-
-    sf::RectangleShape tempBar(sf::Vector2f(120.0f * tempRatio, 10.0f));
-    tempBar.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 180.0f, static_cast<float>(WINDOW_HEIGHT) - 131.0f));
-
-    // Color based on temperature
-    if (currentWeather.temperature < 10.0f)
-    {
-        tempBar.setFillColor(sf::Color(100, 150, 255)); // Cold - blue
+    
+    // Temperature
+    sf::Text tempText(font, "Temp: " + std::to_string(static_cast<int>(currentWeather.temperature)) + "C", 12);
+    if (currentWeather.temperature < 10.0f) {
+        tempText.setFillColor(sf::Color(100, 150, 255));
+    } else if (currentWeather.temperature < 25.0f) {
+        tempText.setFillColor(sf::Color(100, 220, 100));
+    } else {
+        tempText.setFillColor(sf::Color(255, 100, 100));
     }
-    else if (currentWeather.temperature < 25.0f)
-    {
-        tempBar.setFillColor(sf::Color(100, 220, 100)); // Moderate - green
-    }
-    else
-    {
-        tempBar.setFillColor(sf::Color(255, 100, 100)); // Hot - red
-    }
-    window.draw(tempBar);
-
-    // Temperature text
-    sf::Text tempText(font, "Temp: " + std::to_string(static_cast<int>(currentWeather.temperature)) + "°C", 14);
-    tempText.setFillColor(sf::Color(255, 200, 100));
-    tempText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(WINDOW_HEIGHT) - 110.0f));
+    tempText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 45.0f, static_cast<float>(WINDOW_HEIGHT) - 125.0f));
     window.draw(tempText);
-
+    
     // Wind speed
-    sf::Text windText(font, "Wind: " + std::to_string(static_cast<int>(currentWeather.windspeed)) + " km/h", 14);
-    if (currentWeather.windspeed > 20.0f)
-    {
-        windText.setFillColor(sf::Color(255, 100, 100)); // Red for high wind
+    sf::Text windText(font, "Wind: " + std::to_string(static_cast<int>(currentWeather.windspeed)) + " km/h", 12);
+    if (currentWeather.windspeed > 20.0f) {
+        windText.setFillColor(sf::Color(255, 100, 100));
+    } else if (currentWeather.windspeed > 10.0f) {
+        windText.setFillColor(sf::Color(255, 200, 100));
+    } else {
+        windText.setFillColor(sf::Color(100, 200, 255));
     }
-    else if (currentWeather.windspeed > 10.0f)
-    {
-        windText.setFillColor(sf::Color(255, 200, 100)); // Yellow for moderate wind
-    }
-    else
-    {
-        windText.setFillColor(sf::Color(100, 200, 255)); // Blue for low wind
-    }
-    windText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 250.0f, static_cast<float>(WINDOW_HEIGHT) - 110.0f));
+    windText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 240.0f, static_cast<float>(WINDOW_HEIGHT) - 125.0f));
     window.draw(windText);
-
-    // Drone flight conditions indicator
-    sf::RectangleShape conditionsBox(sf::Vector2f(420.0f, 25.0f));
-    conditionsBox.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 40.0f, static_cast<float>(WINDOW_HEIGHT) - 80.0f));
-
-    // Determine flight conditions based on weather
+    
+    // Flight conditions
+    sf::RectangleShape conditionsBox(sf::Vector2f(400.0f, 22.0f));
+    conditionsBox.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 50.0f, static_cast<float>(WINDOW_HEIGHT) - 100.0f));
+    
     string conditionsText;
     sf::Color conditionsColor;
-
-    if (currentWeather.windspeed > 25.0f)
-    {
-        conditionsText = "POOR: High winds affecting drone";
+    
+    if (currentWeather.windspeed > 25.0f) {
+        conditionsText = "POOR: High winds";
         conditionsColor = sf::Color(255, 50, 50, 180);
-    }
-    else if (currentWeather.windspeed > 15.0f)
-    {
-        conditionsText = "MODERATE: Windy conditions";
+    } else if (currentWeather.windspeed > 15.0f) {
+        conditionsText = "MODERATE: Windy";
         conditionsColor = sf::Color(255, 150, 50, 180);
-    }
-    else
-    {
-        conditionsText = "GOOD: Optimal flight conditions";
+    } else {
+        conditionsText = "GOOD: Optimal flight";
         conditionsColor = sf::Color(50, 200, 50, 180);
     }
-
+    
     conditionsBox.setFillColor(conditionsColor);
     window.draw(conditionsBox);
-
-    sf::Text conditionsTextDisplay(font, conditionsText, 12);
+    
+    sf::Text conditionsTextDisplay(font, conditionsText, 11);
     conditionsTextDisplay.setFillColor(sf::Color::White);
     conditionsTextDisplay.setStyle(sf::Text::Bold);
-    conditionsTextDisplay.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 60.0f, static_cast<float>(WINDOW_HEIGHT) - 76.0f));
+    conditionsTextDisplay.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 150.0f, static_cast<float>(WINDOW_HEIGHT) - 97.0f));
     window.draw(conditionsTextDisplay);
-
-    // Weather icons using simple shapes
-    // Temperature icon (thermometer)
-    sf::CircleShape tempIcon(5.0f);
-    tempIcon.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 35.0f, static_cast<float>(WINDOW_HEIGHT) - 108.0f));
-    tempIcon.setFillColor(sf::Color(255, 100, 100));
-    window.draw(tempIcon);
-
-    // Wind icon (simple line instead of arrow to avoid rotation issues)
-    sf::RectangleShape windIcon(sf::Vector2f(15.0f, 2.0f));
-    windIcon.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 235.0f, static_cast<float>(WINDOW_HEIGHT) - 106.0f));
-    windIcon.setFillColor(sf::Color(100, 200, 255));
-    window.draw(windIcon);
-
-    // Last update time
-    sf::Text updateText(font, "Live weather data", 10);
-    updateText.setFillColor(sf::Color(150, 150, 150));
-    updateText.setPosition(sf::Vector2f(static_cast<float>(GRID_SIZE) + 350.0f, static_cast<float>(WINDOW_HEIGHT) - 165.0f));
-    window.draw(updateText);
 }
+
 
 void drawCitySelectionUI(sf::RenderWindow &window, sf::Font &font)
 {
@@ -1302,36 +1245,35 @@ int main()
 
                         currentFuel -= FUEL_PER_GRID_UNIT * moveSpeed;
                     }
-                    else
-                    {
-                        dronePosition = targetPos;
-                        targetStatuses[currentTargetIndex] = DESTROYED;
+else
+{
+    dronePosition = targetPos;
+    targetStatuses[currentTargetIndex] = DESTROYED;
 
-                        // UPDATED: Calculate actual fuel consumed from mission start to target
-                        float fuelUsedFloat = missionStartFuelForCurrentTarget - currentFuel;
-                        int fuelUsedForMission = static_cast<int>(fuelUsedFloat);
+    // UPDATED: Calculate actual fuel consumed from mission start to target
+    float fuelUsedFloat = missionStartFuelForCurrentTarget - currentFuel;
+    int fuelUsedForMission = static_cast<int>(fuelUsedFloat);
+    
+    // Ensure we don't report negative or zero fuel if there was actual movement
+    if (fuelUsedForMission <= 0) {
+        float theoreticalFuel = calculateFuelRequired(initialDronePositionForMission, targetPos);
+        fuelUsedForMission = static_cast<int>(theoreticalFuel);
+    }
+    
+    analysisReport.logMissionCompleted(targetBase.name, fuelUsedForMission);
+    analysisReport.updateFuelData(static_cast<int>(totalFuel), static_cast<int>(currentFuel));
 
-                        // Ensure we don't report negative or zero fuel if there was actual movement
-                        if (fuelUsedForMission <= 0)
-                        {
-                            float theoreticalFuel = calculateFuelRequired(initialDronePositionForMission, targetPos);
-                            fuelUsedForMission = static_cast<int>(theoreticalFuel);
-                        }
+    missionLog += ">>> TARGET DESTROYED: " + targetBase.name + " <<<\n";
+    missionLog += "Fuel used for mission: " + std::to_string(fuelUsedForMission) + "%\n\n";
 
-                        analysisReport.logMissionCompleted(targetBase.name, fuelUsedForMission);
-                        analysisReport.updateFuelData(static_cast<int>(totalFuel), static_cast<int>(currentFuel));
+    showDestroyAnimation = true;
+    destroyAnimationTimer = 0.0f;
+    destroyAnimationPos = sf::Vector2f(targetBase.x * CELL_SIZE, targetBase.y * CELL_SIZE);
 
-                        missionLog += ">>> TARGET DESTROYED: " + targetBase.name + " <<<\n";
-                        missionLog += "Fuel used for mission: " + std::to_string(fuelUsedForMission) + "%\n\n";
-
-                        showDestroyAnimation = true;
-                        destroyAnimationTimer = 0.0f;
-                        destroyAnimationPos = sf::Vector2f(targetBase.x * CELL_SIZE, targetBase.y * CELL_SIZE);
-
-                        movingToTarget = false;
-                        currentPath.clear();
-                        pathStep = 0;
-                    }
+    movingToTarget = false;
+    currentPath.clear();
+    pathStep = 0;
+}
                 }
             }
             else if (!returningHome && missionQueue.empty())
