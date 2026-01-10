@@ -42,7 +42,8 @@ void AnalysisReport::logMissionCompleted(const string& baseName, int fuelUsed)
     }
 
     totalMissionsCompleted++;
-    totalFuelConsumed += fuelUsed;
+    // REMOVED: totalFuelConsumed += fuelUsed;  
+    // We calculate total from startingFuel - currentFuel instead
 }
 
 void AnalysisReport::logMissionFailed(const string& baseName)
@@ -63,6 +64,8 @@ void AnalysisReport::updateFuelData(int starting, int current)
 {
     startingFuel = starting;
     currentFuel = current;
+    // UPDATED: Calculate total fuel consumed from actual fuel difference
+    totalFuelConsumed = startingFuel - currentFuel;
 }
 
 string AnalysisReport::generateReport() const
